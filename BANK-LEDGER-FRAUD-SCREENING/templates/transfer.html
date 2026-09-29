@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Make a Transfer{% endblock %}
+{% block meta_desc %}Securely transfer funds to another account.{% endblock %}
+{% block page_title %}Make a Transfer{% endblock %}
+{% block page_subtitle %}Funds transfer with automated fraud screening{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start;" class="transfer-grid">
+
+  <!-- ── Transfer Form ─────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header-row" style="margin-bottom:24px;">
+      <span class="card-title">
+        <i class="fa-solid fa-paper-plane" style="color:var(--accent)"></i>
+        New Fund Transfer
+      </span>
+      <div class="acct-chip">
+        <i class="fa-solid fa-wallet" style="font-size:10px"></i>
+        Balance: ₹{{ "{:,.2f}".format(acct.balance|float) if acct else "0.00" }}
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('transactions.transfer') }}"
+          id="transfer-form" autocomplete="off">
+
+      <!-- Sender Account (read-only) -->
+      <div class="form-group">
+        <label class="form-label" for="sender_account">
+          <i class="fa-solid fa-building-columns"></i> From Account
+        </label>
+        <input type="text" id="sender_account" class="form-control form-control-mono"
+               value="{{ session.get('account_number','') }}" readonly
+               style="color:var(--text-muted);cursor:not-allowed;"/>
+        <div class="form-hint">Your registered account – cannot be changed</div>
+      </div>
+
+      <!-- Receiver Account -->
+      <div class="form-group">
+        <label class="form-label" for="receiver_account">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> To Account Number
+          <span style="color:var(--danger);">*</span>
+        </label>
+        <input type="text" id="receiver_account" name="receiver_account"
+               class="form-control form-control-mono"
+               placeholder="e.g. ACC1002"
+               maxlength="20" required
+               value="{{ request.form.get('receiver_account','') }}"
+               oninput="this.value=this.value.toUpperCase()"/>
+        <div class="form-hint">Enter the destination account number</div>
+      </div>
+
+      <!-- Amount -->
+      <div class="form-group">
+        <label class="form-label" for="amount-input">
+          <i class="fa-solid fa-indian-rupee-sign"></i> Amount (₹)
+          <span style="color:var(--danger);">*</span>
+        </label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-weight:700;">₹</span>
+          <input type="number" id="amount-input" name="amount"
+                 class="form-control form-control-mono"
+                 style="padding-left:30px;"
+                 placeholder="0.00"
+                 min="1" max="{{ acct.balance|float if acct else 999999 }}"
+                 step="0.01" required
+                 value="{{ request.form.get('amount','') }}"/>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          <div class="form-hint">Min: ₹1 &nbsp;|&nbsp; Max: ₹{{ "{:,.0f}".format(acct.balance|float) if acct else "—" }}</div>
+          <div id="amount-preview" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);">₹0.00</div>
+        </div>
+      </div>
+
+      <!-- Transaction Type -->
+      <div class="form-group">
+        <label class="form-label" for="transaction_type">
+          <i class="fa-solid fa-network-wired"></i> Transfer Mode
+        </label>
+        <select id="transaction_type" name="transaction_type" class="form-control">
+          {% for t in ['NEFT','RTGS','IMPS','UPI'] %}
+          <option value="{{ t }}" {{ 'selected' if request.form.get('transaction_type','NEFT')==t }}>
+            {{ t }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Remarks -->
+      <div class="form-group">
+        <label class="form-label" for="remarks">
+          <i class="fa-solid fa-comment"></i> Remarks (optional)
+        </label>
+        <textarea id="remarks" name="remarks" class="form-control"
+                  placeholder="Payment for invoice #, rent, etc."
+                  maxlength="200">{{ request.form.get('remarks','') }}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 btn-lg" id="submit-btn">
+        <i class="fa-solid fa-paper-plane"></i> Initiate Transfer
+      </button>
+    </form>
+  </div>
+
+  <!-- ── Info Sidebar ───────────────────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Screening notice -->
+    <div class="card" style="border-color:rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i>
+        Automated Screening
+      </div>
+      <p style="font-size:12px;line-height:1.7;color:var(--text-secondary);">
+        Every transfer is automatically screened by our rule-based fraud engine before processing.
+      </p>
+      <hr class="divider"/>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:var(--text-muted);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-check" style="color:var(--success)"></i>
+          Unusual Amount Detection
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-check" style="color:var(--success)"></i>
+          High Frequency Detection
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-check" style="color:var(--success)"></i>
+          New Recipient Check
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-check" style="color:var(--success)"></i>
+          Statistical Pattern Analysis
+        </div>
+      </div>
+    </div>
+
+    <!-- Status legend -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-circle-info" style="color:var(--accent)"></i>
+        What happens next?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:12px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span class="badge badge-success">APPROVED</span>
+          <span style="color:var(--text-muted);">Low-risk transfers are approved instantly and funds transferred.</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span class="badge badge-info">UNDER REVIEW</span>
+          <span style="color:var(--text-muted);">Higher-risk transfers are held for manual review by a bank officer.</span>
+        </div>
+      </div>
+      <hr class="divider"/>
+      <p style="font-size:10px;color:var(--text-muted);line-height:1.6;">
+        <i class="fa-solid fa-flask-vial" style="color:var(--warning)"></i>
+        <strong style="color:var(--warning);">Demo Note:</strong>
+        Thresholds are project-defined demonstration rules — not official banking standards.
+      </p>
+    </div>
+
+    <!-- Transfer mode guide -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-network-wired" style="color:var(--accent)"></i>
+        Transfer Modes
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;gap:8px;">
+        <div><strong style="color:var(--text-secondary);">NEFT</strong> – Batch processing, up to 2 hrs</div>
+        <div><strong style="color:var(--text-secondary);">RTGS</strong> – Real-time gross settlement</div>
+        <div><strong style="color:var(--text-secondary);">IMPS</strong> – Instant payment service 24×7</div>
+        <div><strong style="color:var(--text-secondary);">UPI</strong> – Unified payments interface</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media(max-width:900px){
+  .transfer-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('submit-btn')?.addEventListener('click', function() {
+  const receiver = document.getElementById('receiver_account')?.value.trim();
+  const amount   = document.getElementById('amount-input')?.value.trim();
+  if (!receiver || !amount) return;
+  const preview = document.getElementById('amount-preview')?.textContent || '₹' + amount;
+  if (!confirm(`Confirm Transfer\n\nAmount : ${preview}\nTo     : ${receiver}\n\nThis transfer will be screened automatically. Proceed?`)) {
+    return;
+  }
+  this.innerHTML = '<span class="spinner"></span> Processing…';
+  this.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}CoopBank{% endblock %} – Ledger &amp; Fraud Screening</title>
+  <meta name="description" content="{% block meta_desc %}Cooperative Bank Ledger and Fraud Screening System.{% endblock %}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Flash alerts (floating top-right) -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="alerts-container">
+  {% for cat, msg in messages %}
+  <div class="alert alert-{{ cat }}">
+    <span class="alert-icon">
+      {% if cat=='success' %}<i class="fa-solid fa-circle-check"></i>
+      {% elif cat=='danger' %}<i class="fa-solid fa-circle-xmark"></i>
+      {% elif cat=='warning' %}<i class="fa-solid fa-triangle-exclamation"></i>
+      {% else %}<i class="fa-solid fa-circle-info"></i>{% endif %}
+    </span>
+    <span>{{ msg }}</span>
+    <button class="alert-close" aria-label="Close">✕</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="app-shell">
+
+  <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🏦</div>
+      <div class="sidebar-brand-text">
+        <span class="sidebar-brand-name">CoopBank</span>
+        <span class="sidebar-brand-sub">Fraud Screening</span>
+      </div>
+    </div>
+
+    <!-- User -->
+    <div class="sidebar-user">
+      <div class="sidebar-avatar">
+        {{ (session.get('customer_name') or session.get('username','?'))[0].upper() }}
+      </div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">
+          {{ session.get('customer_name') or session.get('username','User') }}
+        </div>
+        <div class="sidebar-user-role">
+          <i class="fa-solid fa-{% if session.role=='officer' %}shield{% else %}user{% endif %}" style="font-size:9px;"></i>
+          {{ session.get('role','customer')|title }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+
+      {% if session.role == 'customer' %}
+      <span class="nav-section-label">Banking</span>
+      <a class="nav-link" href="{{ url_for('customer.dashboard') }}">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+      {% if not session.get('demo_mode') %}
+      <a class="nav-link" href="{{ url_for('transactions.transfer') }}">
+        <i class="fa-solid fa-paper-plane"></i> Make Transfer
+      </a>
+      {% endif %}
+      <a class="nav-link" href="{{ url_for('customer.ledger') }}">
+        <i class="fa-solid fa-book"></i> My Ledger
+      </a>
+      <a class="nav-link" href="{{ url_for('customer.history') }}">
+        <i class="fa-solid fa-clock-rotate-left"></i> Transaction History
+      </a>
+      <span class="nav-section-label">Account</span>
+      <a class="nav-link" href="{{ url_for('customer.profile') }}">
+        <i class="fa-solid fa-id-card"></i> Profile
+      </a>
+
+      {% elif session.role == 'officer' %}
+      <span class="nav-section-label">Operations</span>
+      <a class="nav-link" href="{{ url_for('officer.dashboard') }}">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+      <a class="nav-link" href="{{ url_for('officer.ledger') }}">
+        <i class="fa-solid fa-book-open"></i> Full Ledger
+      </a>
+      <a class="nav-link" href="{{ url_for('officer.review_queue') }}">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Review Queue
+        {# Badge: count UNDER_REVIEW – passed via g or template var #}
+      </a>
+      <span class="nav-section-label">Compliance</span>
+      <a class="nav-link" href="{{ url_for('officer.audit_logs') }}">
+        <i class="fa-solid fa-scroll"></i> Audit Log
+      </a>
+      {% endif %}
+
+    </nav>
+
+    <!-- Footer logout -->
+    <div class="sidebar-footer">
+      <a class="nav-link" href="{{ url_for('auth.logout') }}">
+        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+      </a>
+    </div>
+
+  </aside><!-- /sidebar -->
+
+  <!-- ═══════════════════════════════ MAIN ════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="flex-center gap-3">
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div>
+          <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+          <div class="topbar-subtitle">{% block page_subtitle %}{% endblock %}</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="topbar-time" id="live-clock">00:00:00</div>
+        {% if session.role == 'customer' and session.account_number %}
+        <div class="acct-chip">
+          <i class="fa-solid fa-building-columns" style="font-size:10px"></i>
+          {{ session.account_number }}
+        </div>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

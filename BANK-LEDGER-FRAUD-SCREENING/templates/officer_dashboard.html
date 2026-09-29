@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Officer Dashboard{% endblock %}
+{% block meta_desc %}Bank officer operations dashboard with KPIs, pending reviews, and risk analytics.{% endblock %}
+{% block page_title %}Operations Dashboard{% endblock %}
+{% block page_subtitle %}Bank Officer Control Panel{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI Stat Cards ─────────────────────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+    <div class="stat-card-value">{{ stats.total or 0 }}</div>
+    <div class="stat-card-label">Total Transactions</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-card-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="stat-card-value">{{ stats.approved or 0 }}</div>
+    <div class="stat-card-label">Approved</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-card-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+    <div class="stat-card-value">{{ stats.under_review or 0 }}</div>
+    <div class="stat-card-label">Pending Review</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-card-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="stat-card-value">{{ high_risk or 0 }}</div>
+    <div class="stat-card-label">High Risk</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-card-icon"><i class="fa-solid fa-ban"></i></div>
+    <div class="stat-card-value">{{ stats.rejected or 0 }}</div>
+    <div class="stat-card-label">Rejected</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-card-icon"><i class="fa-solid fa-pause-circle"></i></div>
+    <div class="stat-card-value">{{ stats.held or 0 }}</div>
+    <div class="stat-card-label">On Hold</div>
+  </div>
+</div>
+
+<!-- ── Two-column: Pending Reviews + Risk Distribution ───────────────────── -->
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;margin-bottom:20px;" class="two-col-grid">
+
+  <!-- Pending Review Queue -->
+  <div class="card">
+    <div class="card-header-row">
+      <span class="card-title">
+        <i class="fa-solid fa-clock" style="color:var(--warning)"></i>
+        Pending Review Queue
+      </span>
+      <a href="{{ url_for('officer.review_queue') }}" class="btn btn-outline btn-sm">
+        View All <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+
+    {% if pending_reviews %}
+    <div class="table-wrapper">
+      <table class="bank-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sender → Receiver</th>
+            <th>Amount</th>
+            <th>Risk</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in pending_reviews %}
+          <tr>
+            <td class="tx-id">#{{ tx.transaction_id }}</td>
+            <td style="font-size:12px;">
+              <span class="font-mono">{{ tx.sender_account }}</span>
+              <span style="color:var(--text-muted);margin:0 4px;">→</span>
+              <span class="font-mono">{{ tx.receiver_account }}</span>
+            </td>
+            <td class="amount-cell">₹{{ "{:,.2f}".format(tx.amount|float) }}</td>
+            <td>
+              {% if tx.risk_level %}
+                <div class="risk-bar-wrap" style="width:80px;margin-bottom:4px;">
+                  <div class="risk-bar {{ tx.risk_level|lower }}" style="width:{{ tx.risk_score }}%;"></div>
+                </div>
+                <span class="risk-{{ tx.risk_level|lower }}">{{ tx.risk_level }} ({{ tx.risk_score }})</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('officer.transaction_detail', tx_id=tx.transaction_id) }}"
+                 class="btn btn-warning btn-sm">
+                <i class="fa-solid fa-gavel"></i> {{ 'View Sample' if session.get('demo_mode') else 'Review' }}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:30px 20px;">
+      <i class="fa-solid fa-check-double" style="color:var(--success)"></i>
+      <h4>Queue Clear</h4>
+      <p>No transactions pending review.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Risk Distribution -->
+  <div class="card">
+    <div class="card-header-row">
+      <span class="card-title">
+        <i class="fa-solid fa-chart-pie" style="color:var(--accent)"></i>
+        Risk Distribution
+      </span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px;">
+      {% set total_screened = (risk_dist.get('LOW',0) + risk_dist.get('MEDIUM',0) + risk_dist.get('HIGH',0)) or 1 %}
+
+      <!-- LOW -->
+      {% set low_pct = ((risk_dist.get('LOW',0) / total_screened) * 100)|round|int %}
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;color:var(--success);">
+            <i class="fa-solid fa-circle-check"></i> LOW RISK
+          </span>
+          <span class="font-mono text-sm">{{ risk_dist.get('LOW',0) }} ({{ low_pct }}%)</span>
+        </div>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar low" style="width:{{ low_pct }}%;"></div>
+        </div>
+      </div>
+
+      <!-- MEDIUM -->
+      {% set med_pct = ((risk_dist.get('MEDIUM',0) / total_screened) * 100)|round|int %}
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;color:var(--warning);">
+            <i class="fa-solid fa-triangle-exclamation"></i> MEDIUM RISK
+          </span>
+          <span class="font-mono text-sm">{{ risk_dist.get('MEDIUM',0) }} ({{ med_pct }}%)</span>
+        </div>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar medium" style="width:{{ med_pct }}%;"></div>
+        </div>
+      </div>
+
+      <!-- HIGH -->
+      {% set high_pct = ((risk_dist.get('HIGH',0) / total_screened) * 100)|round|int %}
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;color:var(--danger);">
+            <i class="fa-solid fa-skull-crossbones"></i> HIGH RISK
+          </span>
+          <span class="font-mono text-sm">{{ risk_dist.get('HIGH',0) }} ({{ high_pct }}%)</span>
+        </div>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar high" style="width:{{ high_pct }}%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- Scoring key -->
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.8;">
+      <div style="font-weight:700;color:var(--text-secondary);margin-bottom:6px;letter-spacing:0.8px;text-transform:uppercase;">
+        Score Weights (Demo Rules)
+      </div>
+      <div>⚡ Unusual Amount&nbsp;&nbsp;+30 pts</div>
+      <div>⚡ High Frequency&nbsp;&nbsp;+20 pts</div>
+      <div>⚡ New Recipient&nbsp;&nbsp;&nbsp;+15 pts</div>
+      <div>⚡ Unusual Pattern&nbsp;&nbsp;+20 pts</div>
+      <div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">
+        0–29 = LOW &nbsp;|&nbsp; 30–59 = MEDIUM &nbsp;|&nbsp; 60+ = HIGH
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Recent Transactions (all) ─────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header-row">
+    <span class="card-title">
+      <i class="fa-solid fa-list-ul" style="color:var(--accent)"></i>
+      Recent Transactions
+    </span>
+    <a href="{{ url_for('officer.ledger') }}" class="btn btn-outline btn-sm">
+      Full Ledger <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+
+  {% if recent %}
+  <div class="table-wrapper">
+    <table class="bank-table">
+      <thead>
+        <tr>
+          <th>TX #</th>
+          <th>Sender</th>
+          <th>Receiver</th>
+          <th>Amount</th>
+          <th>Type</th>
+          <th>Date</th>
+          <th>Risk Score</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in recent %}
+        <tr onclick="window.location='{{ url_for('officer.transaction_detail', tx_id=tx.transaction_id) }}'" style="cursor:pointer;">
+          <td class="tx-id">#{{ tx.transaction_id }}</td>
+          <td class="font-mono text-sm">{{ tx.sender_account }}</td>
+          <td class="font-mono text-sm">{{ tx.receiver_account }}</td>
+          <td class="amount-cell">₹{{ "{:,.2f}".format(tx.amount|float) }}</td>
+          <td><span class="badge badge-primary">{{ tx.transaction_type }}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);">
+            {{ tx.transaction_time.strftime('%d %b %Y, %H:%M') if tx.transaction_time else '—' }}
+          </td>
+          <td>
+            {% if tx.risk_level %}
+            <span class="risk-{{ tx.risk_level|lower }}">
+              {{ tx.risk_score }}/100 · {{ tx.risk_level }}
+            </span>
+            {% else %}
+            <span class="text-muted text-xs">Not screened</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set sc = {'APPROVED':'badge-success','PENDING':'badge-warning','UNDER_REVIEW':'badge-info','REJECTED':'badge-danger','HELD':'badge-secondary'} %}
+            <span class="badge {{ sc.get(tx.status,'badge-primary') }}">{{ tx.status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-inbox"></i>
+    <h4>No transactions yet</h4>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media(max-width:900px){
+  .two-col-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}

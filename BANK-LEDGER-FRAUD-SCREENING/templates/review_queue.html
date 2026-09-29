@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Review Queue{% endblock %}
+{% block meta_desc %}Manual review queue for suspicious transactions flagged by the fraud screening engine.{% endblock %}
+{% block page_title %}Manual Review Queue{% endblock %}
+{% block page_subtitle %}Transactions requiring officer review · {{ paged.total }} pending{% endblock %}
+
+{% block content %}
+
+{% if paged.items %}
+<div style="margin-bottom:16px;padding:12px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--border-radius-sm);display:flex;align-items:center;gap:10px;font-size:13px;color:var(--warning);">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span><strong>{{ paged.total }}</strong> transaction{{ 's' if paged.total != 1 }} awaiting your review. Higher risk scores are shown first.</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header-row">
+    <span class="card-title">
+      <i class="fa-solid fa-magnifying-glass-chart" style="color:var(--warning)"></i>
+      Flagged Transactions
+    </span>
+  </div>
+
+  {% if paged.items %}
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    {% for tx in paged.items %}
+    {% set signals = [] %}
+    {% if tx.triggered_signals %}
+      {% if tx.triggered_signals is string %}
+        {# Jinja can't parse JSON natively – display raw if needed #}
+        {% set signals = [] %}
+      {% else %}
+        {% set signals = tx.triggered_signals %}
+      {% endif %}
+    {% endif %}
+
+    <div class="card" style="padding:18px 20px;border-color:
+      {% if tx.risk_level=='HIGH' %}rgba(239,68,68,0.3)
+      {% elif tx.risk_level=='MEDIUM' %}rgba(245,158,11,0.2)
+      {% else %}var(--border){% endif %};
+      {% if tx.risk_level=='HIGH' %}background:rgba(239,68,68,0.03);{% endif %}">
+
+      <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+
+        <!-- Risk Score Circle (mini) -->
+        <div style="text-align:center;min-width:80px;">
+          <div style="
+            width:72px;height:72px;border-radius:50%;
+            background:conic-gradient(
+              {% if tx.risk_level=='HIGH' %}#ef4444
+              {% elif tx.risk_level=='MEDIUM' %}#f59e0b
+              {% else %}#10b981{% endif %}
+              {{ (tx.risk_score or 0) * 3.6 }}deg,
+              var(--bg-input) 0
+            );
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 6px;">
+            <div style="width:52px;height:52px;background:var(--bg-card);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <span style="font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace;
+                color:{% if tx.risk_level=='HIGH' %}var(--danger){% elif tx.risk_level=='MEDIUM' %}var(--warning){% else %}var(--success){% endif %};">
+                {{ tx.risk_score or 0 }}
+              </span>
+            </div>
+          </div>
+          <span class="risk-{{ (tx.risk_level or 'low')|lower }}">{{ tx.risk_level or 'LOW' }}</span>
+        </div>
+
+        <!-- Transaction Info -->
+        <div style="flex:1;min-width:200px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <span class="tx-id" style="font-size:15px;">#{{ tx.transaction_id }}</span>
+            <span class="badge badge-primary">{{ tx.transaction_type }}</span>
+            <span class="badge badge-info">UNDER REVIEW</span>
+            <span style="font-size:11px;color:var(--text-muted);">
+              {{ tx.transaction_time.strftime('%d %b %Y, %H:%M') if tx.transaction_time else '—' }}
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;" class="tx-info-grid">
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">Sender</div>
+              <div class="font-mono" style="font-size:13px;color:var(--text-primary);">{{ tx.sender_account }}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">Receiver</div>
+              <div class="font-mono" style="font-size:13px;color:var(--text-primary);">{{ tx.receiver_account }}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">Amount</div>
+              <div class="font-mono" style="font-size:15px;font-weight:800;color:var(--danger);">
+                ₹{{ "{:,.2f}".format(tx.amount|float) }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Triggered Signals summary -->
+          {% if tx.triggered_signals %}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            {% if tx.risk_level == 'HIGH' %}
+              <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> Unusual Amount</span>
+            {% endif %}
+            {% if tx.risk_level in ['HIGH','MEDIUM'] %}
+              <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> Frequency / Pattern</span>
+            {% endif %}
+              <span class="badge badge-info"><i class="fa-solid fa-user-question"></i> New Recipient</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Action -->
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+          <a href="{{ url_for('officer.transaction_detail', tx_id=tx.transaction_id) }}"
+             class="btn btn-warning">
+            <i class="fa-solid fa-gavel"></i> {{ 'View Sample' if session.get('demo_mode') else 'Review &amp; Decide' }}
+          </a>
+          <span style="font-size:10px;color:var(--text-muted);">
+            Ref: <span data-copy class="font-mono">{{ tx.reference_number }}</span>
+          </span>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if paged.pages > 1 %}
+  <ul class="pagination">
+    <li><a class="page-link {{ 'disabled' if not paged.has_prev }}"
+           href="?page={{ paged.page - 1 }}"><i class="fa-solid fa-chevron-left"></i></a></li>
+    {% for p in range(1, paged.pages+1) %}
+    <li><a class="page-link {{ 'active' if p==paged.page }}" href="?page={{ p }}">{{ p }}</a></li>
+    {% endfor %}
+    <li><a class="page-link {{ 'disabled' if not paged.has_next }}"
+           href="?page={{ paged.page + 1 }}"><i class="fa-solid fa-chevron-right"></i></a></li>
+  </ul>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-shield-check" style="color:var(--success)"></i>
+    <h4>Review Queue is Clear</h4>
+    <p>All transactions have been processed. No manual reviews pending.</p>
+    <a href="{{ url_for('officer.dashboard') }}" class="btn btn-outline" style="margin-top:16px;">
+      <i class="fa-solid fa-gauge-high"></i> Back to Dashboard
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media(max-width:600px){
+  .tx-info-grid { grid-template-columns: 1fr 1fr !important; }
+}
+</style>
+{% endblock %}

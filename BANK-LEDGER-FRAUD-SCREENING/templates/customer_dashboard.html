@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Dashboard{% endblock %}
+{% block meta_desc %}Your banking dashboard – account balance, recent transactions, and quick actions.{% endblock %}
+{% block page_title %}Customer Dashboard{% endblock %}
+{% block page_subtitle %}Welcome back, {{ session.get('customer_name','') }}{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI Cards ─────────────────────────────────────────────────────────── -->
+<div class="stats-grid">
+
+  <!-- Balance -->
+  <div class="stat-card balance-card" style="--card-accent:#0ea5e9; --card-accent-bg:rgba(14,165,233,0.10);">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-display">
+          ₹{{ "{:,.2f}".format(acct.balance|float) if acct else "0.00" }}
+        </div>
+        <div class="acct-chip" style="margin-top:10px;">
+          <i class="fa-solid fa-building-columns" style="font-size:10px"></i>
+          {{ session.get('account_number','—') }}
+        </div>
+      </div>
+      {% if not session.get('demo_mode') %}<div style="text-align:right;">
+        <a href="{{ url_for('transactions.transfer') }}" class="btn btn-primary">
+          <i class="fa-solid fa-paper-plane"></i> New Transfer
+        </a>
+      </div>{% endif %}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+    <div class="stat-card-value">{{ stats.total or 0 }}</div>
+    <div class="stat-card-label">Total Transactions</div>
+  </div>
+
+  <div class="stat-card green">
+    <div class="stat-card-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="stat-card-value">{{ stats.approved or 0 }}</div>
+    <div class="stat-card-label">Approved</div>
+  </div>
+
+  <div class="stat-card yellow">
+    <div class="stat-card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+    <div class="stat-card-value">{{ stats.pending or 0 }}</div>
+    <div class="stat-card-label">Pending</div>
+  </div>
+
+  <div class="stat-card blue">
+    <div class="stat-card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+    <div class="stat-card-value">{{ stats.under_review or 0 }}</div>
+    <div class="stat-card-label">Under Review</div>
+  </div>
+
+  <div class="stat-card red">
+    <div class="stat-card-icon"><i class="fa-solid fa-ban"></i></div>
+    <div class="stat-card-value">{{ stats.rejected or 0 }}</div>
+    <div class="stat-card-label">Rejected</div>
+  </div>
+
+</div>
+
+<!-- ── Recent Transactions ────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header-row">
+    <span class="card-title">
+      <i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i>
+      Recent Transactions
+    </span>
+    <a href="{{ url_for('customer.ledger') }}" class="btn btn-outline btn-sm">
+      View All <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+
+  {% if recent %}
+  <div class="table-wrapper">
+    <table class="bank-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>To / From</th>
+          <th>Amount</th>
+          <th>Date &amp; Time</th>
+          <th>Risk</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in recent %}
+        {% set is_sender = tx.sender_account == session.account_number %}
+        <tr>
+          <td class="tx-id">#{{ tx.transaction_id }}</td>
+          <td>
+            <span class="badge badge-primary">{{ tx.transaction_type }}</span>
+          </td>
+          <td>
+            {% if is_sender %}
+              <span style="color:var(--danger);font-size:11px;font-weight:700;">OUT</span>
+              &nbsp;→&nbsp;
+            {% else %}
+              <span style="color:var(--success);font-size:11px;font-weight:700;">IN</span>
+              &nbsp;←&nbsp;
+            {% endif %}
+            <span class="font-mono" style="font-size:12px;color:var(--text-secondary);">
+              {{ tx.receiver_account if is_sender else tx.sender_account }}
+            </span>
+          </td>
+          <td class="amount-cell">
+            <span style="color:{% if is_sender %}var(--danger){% else %}var(--success){% endif %}">
+              {% if is_sender %}−{% else %}+{% endif %}
+              ₹{{ "{:,.2f}".format(tx.amount|float) }}
+            </span>
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">
+            {{ tx.transaction_time.strftime('%d %b %Y, %H:%M') if tx.transaction_time else '—' }}
+          </td>
+          <td>
+            {% if tx.risk_level %}
+              <span class="risk-{{ tx.risk_level|lower }}">{{ tx.risk_level }}</span>
+            {% else %}
+              <span class="text-muted text-xs">N/A</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set sc = {'APPROVED':'badge-success','PENDING':'badge-warning','UNDER_REVIEW':'badge-info','REJECTED':'badge-danger','HELD':'badge-secondary'} %}
+            <span class="badge {{ sc.get(tx.status,'badge-primary') }}">{{ tx.status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-inbox"></i>
+    <h4>No transactions yet</h4>
+    <p>Make your first transfer to get started.</p>
+    {% if not session.get('demo_mode') %}<a href="{{ url_for('transactions.transfer') }}" class="btn btn-primary" style="margin-top:16px;">
+      <i class="fa-solid fa-paper-plane"></i> Make a Transfer
+    </a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Quick Actions ──────────────────────────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:20px;">
+  {% if not session.get('demo_mode') %}<a href="{{ url_for('transactions.transfer') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:18px 20px;">
+    <div style="width:40px;height:40px;background:rgba(14,165,233,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--accent);flex-shrink:0;">
+      <i class="fa-solid fa-paper-plane"></i>
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">New Transfer</div>
+      <div style="font-size:12px;color:var(--text-muted);">Send funds instantly</div>
+    </div>
+  </a>{% endif %}
+
+  <a href="{{ url_for('customer.ledger') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:18px 20px;">
+    <div style="width:40px;height:40px;background:rgba(16,185,129,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--success);flex-shrink:0;">
+      <i class="fa-solid fa-book"></i>
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">My Ledger</div>
+      <div style="font-size:12px;color:var(--text-muted);">Full transaction history</div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('customer.profile') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:18px 20px;">
+    <div style="width:40px;height:40px;background:rgba(139,92,246,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--held);flex-shrink:0;">
+      <i class="fa-solid fa-id-card"></i>
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);">My Profile</div>
+      <div style="font-size:12px;color:var(--text-muted);">Account details</div>
+    </div>
+  </a>
+</div>
+
+{% endblock %}

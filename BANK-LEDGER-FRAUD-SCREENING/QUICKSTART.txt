@@ -1,0 +1,20 @@
+# QUICK START – Bank Ledger & Fraud Screening
+# Run these commands in order after installing MySQL
+
+# Step 1: Install MySQL (if not done)
+# Download MySQL Community Server from: https://dev.mysql.com/downloads/mysql/
+# OR install XAMPP (includes MySQL): https://www.apachefriends.org/
+
+# Step 2: Start MySQL (if using XAMPP: open XAMPP Control Panel and click Start on MySQL)
+
+# Step 3: Set up database
+python setup_db.py
+
+# Step 4: Start the Flask application
+python app.py
+
+# The app will be available at: http://localhost:5000
+
+# DEMO LOGINS:
+# Customer: arjun.mehta@demo.bank  / demo1234
+# Officer:  officer1               / officer123

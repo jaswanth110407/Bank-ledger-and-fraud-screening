@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ code }} Error – CoopBank</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;text-align:center;padding:40px;">
+  <div style="font-size:80px;opacity:0.3;">
+    {% if code == 404 %}<i class="fa-solid fa-map-location-dot"></i>
+    {% elif code == 403 %}<i class="fa-solid fa-lock"></i>
+    {% else %}<i class="fa-solid fa-triangle-exclamation"></i>{% endif %}
+  </div>
+  <h1 style="font-size:48px;font-weight:900;color:var(--text-primary);">{{ code }}</h1>
+  <p style="font-size:16px;color:var(--text-secondary);">{{ message }}</p>
+  <div style="display:flex;gap:12px;">
+    <a href="javascript:history.back()" class="btn btn-outline">← Go Back</a>
+    <a href="{{ url_for('auth.index') }}" class="btn btn-primary">🏠 Home</a>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

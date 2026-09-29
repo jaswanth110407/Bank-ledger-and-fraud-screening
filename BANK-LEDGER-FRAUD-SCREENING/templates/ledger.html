@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Bank Ledger' if role=='officer' else 'My Ledger' }}{% endblock %}
+{% block meta_desc %}Searchable, filterable transaction ledger.{% endblock %}
+{% block page_title %}{{ 'Bank Ledger' if role=='officer' else 'My Ledger' }}{% endblock %}
+{% block page_subtitle %}
+  {{ paged.total }} transaction{{ 's' if paged.total != 1 }} found
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Filter / Search Bar ────────────────────────────────────────────────── -->
+<div class="card" style="padding:16px 20px;margin-bottom:20px;">
+  <form method="GET" action="" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+
+    <!-- Search -->
+    <div class="search-bar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" name="q" placeholder="Search TX#, account, reference…"
+             value="{{ search }}" id="search-input"/>
+    </div>
+
+    <!-- Status filter -->
+    <select name="status" class="form-control" style="width:auto;padding:8px 12px;" data-autosubmit>
+      <option value="">All Statuses</option>
+      {% for s in ['APPROVED','PENDING','UNDER_REVIEW','REJECTED','HELD'] %}
+      <option value="{{ s }}" {{ 'selected' if status_filter==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    {% if role == 'officer' %}
+    <!-- Risk filter (officer only) -->
+    <select name="risk" class="form-control" style="width:auto;padding:8px 12px;" data-autosubmit>
+      <option value="">All Risk Levels</option>
+      {% for r in ['LOW','MEDIUM','HIGH'] %}
+      <option value="{{ r }}" {{ 'selected' if risk_filter==r }}>{{ r }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-filter"></i> Filter
+    </button>
+    <a href="{{ url_for('officer.ledger' if role=='officer' else 'customer.ledger') }}"
+       class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-rotate-left"></i> Reset
+    </a>
+  </form>
+</div>
+
+<!-- ── Ledger Table ───────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header-row">
+    <span class="card-title">
+      <i class="fa-solid fa-book-open" style="color:var(--accent)"></i>
+      Transaction Ledger
+    </span>
+    <span style="font-size:12px;color:var(--text-muted);">
+      Page {{ paged.page }} of {{ paged.pages }}
+    </span>
+  </div>
+
+  {% if paged.items %}
+  <div class="table-wrapper">
+    <table class="bank-table">
+      <thead>
+        <tr>
+          <th>TX #</th>
+          <th>Reference</th>
+          <th>Sender</th>
+          <th>Receiver</th>
+          <th>Amount</th>
+          <th>Type</th>
+          <th>Date &amp; Time</th>
+          <th>Risk</th>
+          <th>Status</th>
+          {% if role == 'officer' %}<th>Action</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in paged.items %}
+        <tr>
+          <td class="tx-id">#{{ tx.transaction_id }}</td>
+          <td>
+            <span data-copy class="font-mono" style="font-size:11px;color:var(--text-muted);">
+              {{ tx.reference_number }}
+            </span>
+          </td>
+          <td class="font-mono text-sm">{{ tx.sender_account }}</td>
+          <td class="font-mono text-sm">{{ tx.receiver_account }}</td>
+          <td class="amount-cell">₹{{ "{:,.2f}".format(tx.amount|float) }}</td>
+          <td><span class="badge badge-primary">{{ tx.transaction_type }}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
+            {{ tx.transaction_time.strftime('%d %b %Y, %H:%M') if tx.transaction_time else '—' }}
+          </td>
+          <td>
+            {% if tx.risk_level %}
+              <span class="risk-{{ tx.risk_level|lower }}">{{ tx.risk_level }}</span>
+              {% if tx.risk_score is not none %}
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">Score: {{ tx.risk_score }}/100</div>
+              {% endif %}
+            {% else %}
+              <span class="text-xs text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set sc = {'APPROVED':'badge-success','PENDING':'badge-warning','UNDER_REVIEW':'badge-info','REJECTED':'badge-danger','HELD':'badge-secondary'} %}
+            <span class="badge {{ sc.get(tx.status,'badge-primary') }}">{{ tx.status }}</span>
+          </td>
+          {% if role == 'officer' %}
+          <td>
+            <a href="{{ url_for('officer.transaction_detail', tx_id=tx.transaction_id) }}"
+               class="btn btn-outline btn-sm">
+              <i class="fa-solid fa-eye"></i>
+            </a>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if paged.pages > 1 %}
+  <ul class="pagination" style="margin-top:16px;">
+    <li class="page-item">
+      <a class="page-link {{ 'disabled' if not paged.has_prev }}"
+         href="?page={{ paged.page - 1 }}&q={{ search }}&status={{ status_filter }}{% if role=='officer' %}&risk={{ risk_filter }}{% endif %}">
+        <i class="fa-solid fa-chevron-left"></i>
+      </a>
+    </li>
+    {% for p in range(1, paged.pages+1) %}
+    {% if p == paged.page or (p >= paged.page-2 and p <= paged.page+2) %}
+    <li class="page-item">
+      <a class="page-link {{ 'active' if p==paged.page }}"
+         href="?page={{ p }}&q={{ search }}&status={{ status_filter }}{% if role=='officer' %}&risk={{ risk_filter }}{% endif %}">
+        {{ p }}
+      </a>
+    </li>
+    {% endif %}
+    {% endfor %}
+    <li class="page-item">
+      <a class="page-link {{ 'disabled' if not paged.has_next }}"
+         href="?page={{ paged.page + 1 }}&q={{ search }}&status={{ status_filter }}{% if role=='officer' %}&risk={{ risk_filter }}{% endif %}">
+        <i class="fa-solid fa-chevron-right"></i>
+      </a>
+    </li>
+  </ul>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-filter-circle-xmark"></i>
+    <h4>No transactions match your filters</h4>
+    <p>Try adjusting the search or filters above.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

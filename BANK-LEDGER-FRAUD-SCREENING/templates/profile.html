@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+{% block page_title %}Account Profile{% endblock %}
+{% block page_subtitle %}Your account and personal information{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start;" class="profile-grid">
+
+  <!-- Avatar Card -->
+  <div class="card" style="text-align:center;padding:32px 24px;">
+    <div style="width:80px;height:80px;background:linear-gradient(135deg,var(--primary-light),var(--accent));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;margin:0 auto 16px;box-shadow:var(--shadow-glow);">
+      {{ (acct.name or 'U')[0].upper() }}
+    </div>
+    <h2 style="font-size:18px;margin-bottom:4px;">{{ acct.name }}</h2>
+    <div style="font-size:12px;color:var(--accent);margin-bottom:16px;">Active Customer</div>
+    <div class="acct-chip" style="justify-content:center;">
+      <i class="fa-solid fa-building-columns" style="font-size:10px"></i>
+      {{ acct.account_number }}
+    </div>
+    <hr class="divider"/>
+    <div style="font-size:11px;color:var(--text-muted);">
+      Member since {{ acct.member_since.strftime('%B %Y') if acct.member_since else '—' }}
+    </div>
+  </div>
+
+  <!-- Details Card -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px;">
+        <i class="fa-solid fa-id-card" style="color:var(--accent)"></i>
+        Personal Information
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="form-label">Full Name</div>
+          <div style="color:var(--text-primary);font-weight:600;">{{ acct.name }}</div>
+        </div>
+        <div>
+          <div class="form-label">Email</div>
+          <div style="color:var(--text-primary);">{{ acct.email }}</div>
+        </div>
+        <div>
+          <div class="form-label">Phone</div>
+          <div style="color:var(--text-primary);">{{ acct.phone or '—' }}</div>
+        </div>
+        <div>
+          <div class="form-label">Customer Status</div>
+          <span class="badge badge-success">{{ (acct.cust_status or 'active')|upper }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px;">
+        <i class="fa-solid fa-building-columns" style="color:var(--accent)"></i>
+        Account Details
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="form-label">Account Number</div>
+          <div data-copy class="font-mono" style="font-size:16px;color:var(--accent);font-weight:700;">{{ acct.account_number }}</div>
+        </div>
+        <div>
+          <div class="form-label">Account Type</div>
+          <span class="badge badge-primary">Savings</span>
+        </div>
+        <div>
+          <div class="form-label">Available Balance</div>
+          <div style="font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text-primary);">
+            ₹{{ "{:,.2f}".format(acct.balance|float) if acct else "0.00" }}
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Account Status</div>
+          <span class="badge badge-success">{{ (acct.status or 'active')|upper }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:rgba(14,165,233,0.04);border-color:rgba(14,165,233,0.2);">
+      <div class="card-title" style="margin-bottom:12px;font-size:13px;">
+        <i class="fa-solid fa-shield-halved" style="color:var(--success)"></i>
+        Security
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;gap:8px;">
+        <div><i class="fa-solid fa-check" style="color:var(--success)"></i>&nbsp; Password hashed with Werkzeug pbkdf2:sha256</div>
+        <div><i class="fa-solid fa-check" style="color:var(--success)"></i>&nbsp; Session-based authentication (Flask sessions)</div>
+        <div><i class="fa-solid fa-check" style="color:var(--success)"></i>&nbsp; All transfers screened by fraud engine</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media(max-width:768px){
+  .profile-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}

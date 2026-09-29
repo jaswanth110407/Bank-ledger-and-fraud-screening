@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log{% endblock %}
+{% block meta_desc %}Auditable history of officer decisions on suspicious transactions.{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+{% block page_subtitle %}Officer decisions on suspicious transactions · {{ paged.total }} records{% endblock %}
+
+{% block content %}
+
+<div class="card" style="padding:18px 20px;margin-bottom:20px;">
+  <form method="GET" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div class="search-bar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" name="q" placeholder="Search review, transaction, officer, or remarks…" value="{{ search }}" aria-label="Search audit records"/>
+    </div>
+
+    <select name="decision" class="form-control" style="width:auto;padding:8px 12px;" aria-label="Filter by decision">
+      <option value="">All Decisions</option>
+      {% for choice in ['HOLD', 'APPROVE', 'REJECT'] %}
+      <option value="{{ choice }}" {{ 'selected' if decision_filter==choice }}>{{ choice }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-filter"></i> Filter
+    </button>
+    <a href="{{ url_for('officer.audit_logs') }}" class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-rotate-left"></i> Reset
+    </a>
+  </form>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <div class="card-header-row" style="padding:20px 24px 0;">
+    <span class="card-title">
+      <i class="fa-solid fa-scroll" style="color:var(--accent)"></i>
+      Officer Review Activity
+    </span>
+    <span style="font-size:12px;color:var(--text-muted);">{{ paged.total }} review{{ 's' if paged.total != 1 }}</span>
+  </div>
+
+  {% if paged.items %}
+  <div class="table-wrapper">
+    <table class="bank-table">
+      <thead>
+        <tr>
+          <th>Review ID</th>
+          <th>Transaction ID</th>
+          <th>Officer ID</th>
+          <th>Decision</th>
+          <th>Remarks</th>
+          <th>Date &amp; Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in paged.items %}
+        <tr>
+          <td class="font-mono" style="font-size:12px;font-weight:700;color:var(--text-primary);">
+            REV{{ '%05d'|format(log.review_id|int) }}
+          </td>
+          <td class="font-mono text-sm" style="color:var(--accent);">TX{{ '%05d'|format(log.transaction_id|int) }}</td>
+          <td class="font-mono text-sm">OFF{{ '%03d'|format(log.officer_id|int) }}</td>
+          <td>
+            {% set decision_badges = {'APPROVE':'badge-success','REJECT':'badge-danger','HOLD':'badge-warning'} %}
+            <span class="badge {{ decision_badges.get(log.decision, 'badge-secondary') }}">
+              {{ log.decision }}
+            </span>
+          </td>
+          <td style="font-size:13px;color:var(--text-secondary);min-width:240px;">
+            {{ log.remarks or '—' }}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
+            {{ log.reviewed_at.strftime('%d %b %Y, %I:%M %p') if log.reviewed_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if paged.pages > 1 %}
+  <ul class="pagination">
+    <li><a class="page-link {{ 'disabled' if not paged.has_prev }}"
+           href="?page={{ paged.page-1 }}&q={{ search }}&decision={{ decision_filter }}">
+           <i class="fa-solid fa-chevron-left"></i></a></li>
+    {% for p in range(1, paged.pages+1) %}
+    {% if p==paged.page or (p>=paged.page-2 and p<=paged.page+2) %}
+    <li><a class="page-link {{ 'active' if p==paged.page }}"
+           href="?page={{ p }}&q={{ search }}&decision={{ decision_filter }}">{{ p }}</a></li>
+    {% endif %}
+    {% endfor %}
+    <li><a class="page-link {{ 'disabled' if not paged.has_next }}"
+           href="?page={{ paged.page+1 }}&q={{ search }}&decision={{ decision_filter }}">
+           <i class="fa-solid fa-chevron-right"></i></a></li>
+  </ul>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-clipboard-check"></i>
+    <h4>No officer review actions found</h4>
+    <p>HOLD, APPROVE, and REJECT decisions on suspicious transactions will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

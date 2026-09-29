@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyc
+
+# Environment / secrets
+.env
+*.env.local
+*.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Database dumps
+*.sql.bak
+*.dump
+
+# Tests
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/

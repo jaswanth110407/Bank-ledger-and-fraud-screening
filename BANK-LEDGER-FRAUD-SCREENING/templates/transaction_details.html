@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Transaction #{{ tx.transaction_id }}{% endblock %}
+{% block meta_desc %}Full screening details and officer decision panel for transaction #{{ tx.transaction_id }}.{% endblock %}
+{% block page_title %}Transaction #{{ tx.transaction_id }}{% endblock %}
+{% block page_subtitle %}Detailed view &amp; Officer Decision Panel{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start;" class="detail-grid">
+
+  <!-- ── Left Column ─────────────────────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:18px;">
+
+    <!-- Transaction Details Card -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px;">
+        <i class="fa-solid fa-file-invoice-dollar" style="color:var(--accent)"></i>
+        Transaction Details
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;" class="detail-info-grid">
+        <div>
+          <div class="form-label">Transaction ID</div>
+          <div class="tx-id" style="font-size:16px;">#{{ tx.transaction_id }}</div>
+        </div>
+        <div>
+          <div class="form-label">Reference Number</div>
+          <div data-copy class="font-mono" style="font-size:13px;color:var(--text-primary);">{{ tx.reference_number }}</div>
+        </div>
+        <div>
+          <div class="form-label">Sender Account</div>
+          <div class="font-mono" style="font-size:14px;color:var(--text-primary);">{{ tx.sender_account }}</div>
+        </div>
+        <div>
+          <div class="form-label">Receiver Account</div>
+          <div class="font-mono" style="font-size:14px;color:var(--text-primary);">{{ tx.receiver_account }}</div>
+        </div>
+        <div>
+          <div class="form-label">Amount</div>
+          <div style="font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--danger);">
+            ₹{{ "{:,.2f}".format(tx.amount|float) }}
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Transfer Mode</div>
+          <span class="badge badge-primary" style="font-size:13px;padding:6px 14px;">{{ tx.transaction_type }}</span>
+        </div>
+        <div>
+          <div class="form-label">Date &amp; Time</div>
+          <div style="color:var(--text-primary);font-size:13px;">
+            {{ tx.transaction_time.strftime('%d %B %Y, %H:%M:%S UTC') if tx.transaction_time else '—' }}
+          </div>
+        </div>
+        <div>
+          <div class="form-label">Current Status</div>
+          {% set sc = {'APPROVED':'badge-success','PENDING':'badge-warning','UNDER_REVIEW':'badge-info','REJECTED':'badge-danger','HELD':'badge-secondary'} %}
+          <span class="badge {{ sc.get(tx.status,'badge-primary') }}" style="font-size:13px;padding:6px 14px;">{{ tx.status }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screening Result Card -->
+    {% if screening %}
+    <div class="card" style="border-color:
+      {% if screening.risk_level=='HIGH' %}rgba(239,68,68,0.3)
+      {% elif screening.risk_level=='MEDIUM' %}rgba(245,158,11,0.25)
+      {% else %}rgba(16,185,129,0.2){% endif %};">
+
+      <div class="card-header-row" style="margin-bottom:20px;">
+        <span class="card-title">
+          <i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i>
+          Automated Screening Result
+        </span>
+        <span style="font-size:11px;color:var(--text-muted);">
+          {{ screening.screened_at.strftime('%d %b %Y, %H:%M') if screening.screened_at else '' }}
+        </span>
+      </div>
+
+      <!-- Risk score widget -->
+      <div class="risk-score-widget" style="padding:20px 0;">
+        <div class="risk-score-circle"
+             id="risk-circle"
+             data-score="{{ screening.risk_score }}"
+             data-level="{{ screening.risk_level }}"
+             style="--pct:{{ screening.risk_score }};">
+          <div class="risk-score-inner">
+            <div class="risk-score-number" style="color:
+              {% if screening.risk_level=='HIGH' %}var(--danger)
+              {% elif screening.risk_level=='MEDIUM' %}var(--warning)
+              {% else %}var(--success){% endif %};">
+              {{ screening.risk_score }}
+            </div>
+            <div class="risk-score-max">/100</div>
+          </div>
+        </div>
+
+        <div class="risk-{{ screening.risk_level|lower }}" style="font-size:15px;padding:6px 20px;display:inline-block;">
+          {{ screening.risk_level }} RISK
+        </div>
+
+        <p style="font-size:11px;color:var(--text-muted);margin-top:10px;">
+          Threshold: 0–29 = LOW · 30–59 = MEDIUM · 60–100 = HIGH
+        </p>
+      </div>
+
+      <hr class="divider"/>
+
+      <!-- Triggered signals -->
+      <div class="form-label" style="margin-bottom:12px;">
+        <i class="fa-solid fa-radar"></i> Triggered Signals
+      </div>
+
+      {% if screening.triggered_signals and screening.triggered_signals|length > 0 %}
+      <ul class="signal-list">
+        {% for sig in screening.triggered_signals %}
+        <li class="signal-item">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>{{ sig }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="signal-empty">
+        <i class="fa-solid fa-shield-check" style="color:var(--success)"></i>
+        No suspicious signals detected. This transaction passed all screening rules.
+      </div>
+      {% endif %}
+
+      <div style="margin-top:16px;padding:10px 14px;background:rgba(245,158,11,0.06);border-radius:6px;border:1px solid rgba(245,158,11,0.15);font-size:11px;color:var(--text-muted);">
+        <i class="fa-solid fa-flask-vial" style="color:var(--warning)"></i>
+        <strong style="color:var(--warning);">Demo Disclaimer:</strong>
+        These signals are generated by project-defined demonstration rules and are <em>not</em> official banking or regulatory fraud standards.
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-shield-halved"></i> Screening Result</div>
+      <div class="empty-state" style="padding:20px;">
+        <i class="fa-solid fa-hourglass"></i>
+        <h4>Screening not yet complete</h4>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Previous Review (if any) -->
+    {% if review %}
+    <div class="card" style="border-color:rgba(139,92,246,0.25);background:rgba(139,92,246,0.04);">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-stamp" style="color:var(--held)"></i>
+        Previous Review Decision
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <div class="form-label">Decision</div>
+          {% set dc = {'APPROVE':'badge-success','REJECT':'badge-danger','HOLD':'badge-secondary'} %}
+          <span class="badge {{ dc.get(review.decision,'badge-primary') }}" style="font-size:13px;">{{ review.decision }}</span>
+        </div>
+        <div style="flex:1;">
+          <div class="form-label">Officer Remarks</div>
+          <div style="font-size:13px;color:var(--text-secondary);">{{ review.remarks or '— No remarks added —' }}</div>
+        </div>
+        <div>
+          <div class="form-label">Reviewed At</div>
+          <div style="font-size:12px;color:var(--text-muted);">
+            {{ review.reviewed_at.strftime('%d %b %Y, %H:%M') if review.reviewed_at else '—' }}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ── Right Column: Officer Decision ──────────────────────────────────── -->
+  <div>
+    {% if tx.status == 'UNDER_REVIEW' and not session.get('demo_mode') %}
+    <div class="card" style="border-color:rgba(14,165,233,0.3);background:rgba(14,165,233,0.04);">
+      <div class="card-title" style="margin-bottom:20px;">
+        <i class="fa-solid fa-gavel" style="color:var(--accent)"></i>
+        Officer Decision
+      </div>
+
+      <form method="POST" action="{{ url_for('officer.transaction_detail', tx_id=tx.transaction_id) }}"
+            id="decision-form">
+
+        <!-- Decision buttons -->
+        <div class="form-group">
+          <label class="form-label">Select Decision</label>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+
+            <label style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;cursor:pointer;transition:var(--transition);"
+                   onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='rgba(16,185,129,0.2)'">
+              <input type="radio" name="decision" value="APPROVE" id="dec-approve" required style="accent-color:var(--success);" onchange="updateBtn(this)"/>
+              <div>
+                <div style="font-weight:700;color:var(--success);">✓ APPROVE</div>
+                <div style="font-size:11px;color:var(--text-muted);">Release funds and mark as approved</div>
+              </div>
+            </label>
+
+            <label style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;cursor:pointer;transition:var(--transition);"
+                   onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='rgba(239,68,68,0.2)'">
+              <input type="radio" name="decision" value="REJECT" id="dec-reject" style="accent-color:var(--danger);" onchange="updateBtn(this)"/>
+              <div>
+                <div style="font-weight:700;color:var(--danger);">✕ REJECT</div>
+                <div style="font-size:11px;color:var(--text-muted);">Block transaction permanently</div>
+              </div>
+            </label>
+
+            <label style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2);border-radius:8px;cursor:pointer;transition:var(--transition);"
+                   onmouseover="this.style.borderColor='#8b5cf6'" onmouseout="this.style.borderColor='rgba(139,92,246,0.2)'">
+              <input type="radio" name="decision" value="HOLD" id="dec-hold" style="accent-color:var(--held);" onchange="updateBtn(this)"/>
+              <div>
+                <div style="font-weight:700;color:var(--held);">⏸ HOLD</div>
+                <div style="font-size:11px;color:var(--text-muted);">Place transaction on hold for later</div>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Remarks -->
+        <div class="form-group">
+          <label class="form-label" for="remarks">Officer Remarks</label>
+          <textarea id="remarks" name="remarks" class="form-control"
+                    placeholder="Add your review notes here (optional)…"
+                    rows="3" maxlength="500"></textarea>
+          <div class="form-hint">These remarks will be saved in the audit log.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg" id="decision-btn" disabled>
+          <i class="fa-solid fa-gavel"></i> Submit Decision
+        </button>
+
+      </form>
+    </div>
+    {% elif session.get('demo_mode') %}
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-lock" style="color:var(--warning)"></i>
+        Read-only Demo Preview
+      </div>
+      <p>Officer decisions are disabled while viewing synthetic offline data.</p>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-gavel" style="color:var(--text-muted)"></i>
+        Decision Panel
+      </div>
+      <div class="empty-state" style="padding:20px;">
+        <i class="fa-solid fa-lock"></i>
+        <h4>Already Processed</h4>
+        <p>This transaction status is <strong>{{ tx.status }}</strong> and cannot be changed.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Back button -->
+    <div style="margin-top:12px;">
+      <a href="{{ url_for('officer.review_queue') }}" class="btn btn-outline w-100">
+        <i class="fa-solid fa-arrow-left"></i> Back to Review Queue
+      </a>
+    </div>
+    <div style="margin-top:8px;">
+      <a href="{{ url_for('officer.ledger') }}" class="btn btn-outline w-100">
+        <i class="fa-solid fa-book-open"></i> View Full Ledger
+      </a>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media(max-width:900px){
+  .detail-grid { grid-template-columns: 1fr !important; }
+}
+@media(max-width:600px){
+  .detail-info-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateBtn(radio) {
+  const btn = document.getElementById('decision-btn');
+  const colours = { APPROVE:'btn-success', REJECT:'btn-danger', HOLD:'btn-warning' };
+  const icons   = { APPROVE:'fa-check', REJECT:'fa-xmark', HOLD:'fa-pause' };
+  btn.className = `btn ${colours[radio.value]} w-100 btn-lg`;
+  btn.innerHTML = `<i class="fa-solid ${icons[radio.value]}"></i> ${radio.value} Transaction`;
+  btn.disabled  = false;
+}
+
+document.getElementById('decision-form')?.addEventListener('submit', function(e) {
+  const decision = document.querySelector('input[name="decision"]:checked');
+  if (!decision) { e.preventDefault(); alert('Please select a decision.'); return; }
+  if (!confirm(`Confirm: ${decision.value} transaction #{{ tx.transaction_id }}?\n\nThis action will be permanently recorded in the audit log.`)) {
+    e.preventDefault();
+  }
+});
+</script>
+{% endblock %}
